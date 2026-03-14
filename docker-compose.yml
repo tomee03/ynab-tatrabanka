@@ -1,0 +1,6 @@
+services:
+  ynab:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env.example
