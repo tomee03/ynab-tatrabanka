@@ -37,7 +37,7 @@ def parse_tatra_banka_email(body: str) -> ParsedTransaction | None:
 
     # Match the main transaction line
     pattern = (
-        r"(\d{1,2}\.\d{1,2}\.\d{4})\s+\d{1,2}:\d{2}\s+"
+        r"(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})\s+\d{1,2}:\d{2}\s+"
         r"bol zostatok Vasho uctu\s+([A-Z]{2}\d+)\s+"
         r"(znizeny|zvyseny)\s+o\s+([\d\s\xa0]+,\d{2})\s+EUR"
     )
@@ -50,8 +50,8 @@ def parse_tatra_banka_email(body: str) -> ParsedTransaction | None:
     direction = match.group(3)
     amount_str = match.group(4)
 
-    # Parse date (d.m.yyyy)
-    day, month, year = date_str.split(".")
+    # Parse date (d.m.yyyy, possibly with spaces)
+    day, month, year = [p.strip() for p in date_str.split(".")]
     transaction_date = date(int(year), int(month), int(day))
 
     # Parse amount
@@ -107,7 +107,7 @@ def _parse_savings_email(body: str) -> ParsedTransaction | None:
         Popis transakcie: Platba 1100/000000-1238488000
     """
     pattern = (
-        r"(\d{1,2}\.\d{1,2}\.\d{4})\s+\d{1,2}:\d{2}\s+"
+        r"(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})\s+\d{1,2}:\d{2}\s+"
         r"bol zostatok Vasho sporenia\s+(.+?)\s+zvyseny\s+o\s+([\d\s\xa0]+,\d{2})\s+EUR"
     )
     match = re.search(pattern, body)
@@ -118,7 +118,7 @@ def _parse_savings_email(body: str) -> ParsedTransaction | None:
     savings_name = match.group(2).strip()
     amount_str = match.group(3)
 
-    day, month, year = date_str.split(".")
+    day, month, year = [p.strip() for p in date_str.split(".")]
     transaction_date = date(int(year), int(month), int(day))
 
     amount = _parse_amount(amount_str)
