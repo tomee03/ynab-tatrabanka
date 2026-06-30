@@ -2,14 +2,15 @@
 
 Automatically creates [YNAB](https://www.ynab.com/) transactions from Tatra Banka email notifications.
 
-The service connects to an IMAP mailbox, listens for new emails using IDLE (push), parses Tatra Banka transaction notifications, matches the account by IBAN, and creates transactions in YNAB.
+The service connects to an IMAP mailbox, listens for new emails using IDLE (push), parses Tatra Banka transaction notifications, matches the account by an identifier stored in the YNAB account Notes field, and creates transactions in YNAB.
 
 ## Features
 
 - **Real-time processing** — uses IMAP IDLE for instant email detection, no polling
-- **Multi-plan support** — scans all YNAB plans/budgets to find accounts by IBAN
+- **Multi-plan support** — scans all YNAB plans/budgets to find accounts by account identifier
+- **Credit card notifications** — matches credit card transactions by masked card number
 - **Savings account transfers** — automatically records transfers between personal and savings accounts
-- **Account caching** — IBAN-to-account mappings are cached and refreshed every 6 hours
+- **Account caching** — account identifier mappings are cached and refreshed every 6 hours
 - **Retry on failure** — failed emails are marked as unread so they get reprocessed
 - **Auto-reconnect** — recovers automatically from IMAP connection failures
 - **Graceful shutdown** — handles SIGINT/SIGTERM for clean container stops
@@ -20,20 +21,25 @@ The service connects to an IMAP mailbox, listens for new emails using IDLE (push
 2. Processes any existing unread emails
 3. Enters IDLE mode and waits for new emails
 4. When a new email arrives, parses the Tatra Banka notification to extract:
-   - IBAN, amount, date, payee, memo, and bank transaction ID
-5. Looks up the IBAN in the cached YNAB account mappings
+   - account identifier, amount, date, payee, memo, and bank transaction ID
+5. Looks up the account identifier in the cached YNAB account mappings
 6. Creates a transaction in the matching YNAB account
 7. If processing fails, the email is marked as unread for retry
 
 ### Supported email types
 
 - **Regular transactions** — card payments, incoming/outgoing transfers on your main account
+- **Credit card transactions** — credit card notifications matched by `Cislo karty`
 - **Savings deposit** — money moved from personal to savings account (`sporenia ... zvyseny`)
 - **Savings withdrawal** — money moved from savings back to personal account (matched via account number in `Popis transakcie`)
 
-### IBAN matching
+### Account matching
 
-Store the IBAN in the **Notes** field of your YNAB account. The service scans all plans and accounts on startup and caches the mappings.
+Store the matching account identifier in the **Notes** field of your YNAB account. The service scans all plans and accounts on startup and caches the mappings. Supported identifiers include:
+
+- IBAN for regular bank accounts
+- Domestic account number for transfer matching
+- Masked card number for credit cards, e.g. `4330**3001`
 
 ### Savings accounts
 
@@ -58,7 +64,7 @@ Both directions are recorded as proper YNAB transfers between accounts, not regu
 
 - A [YNAB Personal Access Token](https://api.ynab.com/#personal-access-tokens)
 - An IMAP-enabled email account that receives Tatra Banka notifications
-- IBAN set in the Notes field of the corresponding YNAB account(s)
+- Account identifier set in the Notes field of the corresponding YNAB account(s)
 
 ### Configuration
 

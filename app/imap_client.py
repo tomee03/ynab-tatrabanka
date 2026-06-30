@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import email
 import logging
 import os
@@ -88,8 +90,8 @@ def _parse_email_message(raw_email: bytes) -> ParsedTransaction | None:
     if parsed:
         parsed.bank_transaction_id = _extract_bank_transaction_id(subject)
         logger.info(
-            "Parsed transaction: IBAN=%s, amount=%.2f, payee=%s, bank_id=%s",
-            parsed.iban,
+            "Parsed transaction: account_identifier=%s, amount=%.2f, payee=%s, bank_id=%s",
+            parsed.account_identifier,
             parsed.amount,
             parsed.payee_name,
             parsed.bank_transaction_id,

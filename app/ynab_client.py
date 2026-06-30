@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import threading
@@ -49,12 +51,19 @@ class AccountInfo:
     plan_id: str
     account_id: str
     account_name: str
-    iban: str
+    account_identifier: str
     transfer_payee_id: str | None = None
+
+    @property
+    def iban(self) -> str:
+        """Backward-compatible alias for older IBAN-only callers."""
+        return self.account_identifier
 
 
 class AccountCache:
-    """Cache mapping IBAN → (plan_id, account_id) across all YNAB plans.
+    """Cache mapping account note identifiers to YNAB accounts across all plans.
+
+    Identifiers can be IBANs, domestic account numbers, or masked card numbers.
     Refreshes automatically every CACHE_TTL seconds."""
 
     def __init__(self):
@@ -89,26 +98,26 @@ class AccountCache:
                     plan_id=plan_id,
                     account_id=str(account.id),
                     account_name=account.name,
-                    iban="",
+                    account_identifier="",
                     transfer_payee_id=str(account.transfer_payee_id) if account.transfer_payee_id else None,
                 )
 
                 # Index by name
                 new_by_name[account.name] = info
 
-                # Index by IBAN if present in notes
+                # Index by account identifier if present in notes
                 if account.note:
                     note_normalized = account.note.strip().upper().replace(" ", "")
                     info = AccountInfo(
                         plan_id=plan_id,
                         account_id=str(account.id),
                         account_name=account.name,
-                        iban=note_normalized,
+                        account_identifier=note_normalized,
                         transfer_payee_id=str(account.transfer_payee_id) if account.transfer_payee_id else None,
                     )
                     new_cache[note_normalized] = info
                     logger.info(
-                        "Cached: IBAN=%s → plan=%s, account='%s'",
+                        "Cached: account_identifier=%s → plan=%s, account='%s'",
                         note_normalized,
                         plan.name,
                         account.name,
@@ -119,23 +128,31 @@ class AccountCache:
             self._by_name = new_by_name
             self._last_refresh = time.time()
 
-        logger.info("Account cache refreshed: %d IBAN(s), %d name(s) mapped", len(new_cache), len(new_by_name))
+        logger.info(
+            "Account cache refreshed: %d account identifier(s), %d name(s) mapped",
+            len(new_cache),
+            len(new_by_name),
+        )
 
-    def find_by_iban(self, iban: str) -> AccountInfo | None:
-        """Look up an account by IBAN. Auto-refreshes if cache is stale."""
+    def find_by_account_identifier(self, identifier: str) -> AccountInfo | None:
+        """Look up an account by account note identifier. Auto-refreshes if cache is stale."""
         if self._needs_refresh():
             self.refresh()
 
-        iban_normalized = iban.strip().upper().replace(" ", "")
+        identifier_normalized = identifier.strip().upper().replace(" ", "")
         with self._lock:
             # Exact match first
-            if iban_normalized in self._cache:
-                return self._cache[iban_normalized]
-            # Substring match (IBAN contained in note)
+            if identifier_normalized in self._cache:
+                return self._cache[identifier_normalized]
+            # Substring match (identifier contained in note)
             for key, info in self._cache.items():
-                if iban_normalized in key or key in iban_normalized:
+                if identifier_normalized in key or key in identifier_normalized:
                     return info
         return None
+
+    def find_by_iban(self, iban: str) -> AccountInfo | None:
+        """Look up an account by IBAN. Kept for compatibility with existing callers."""
+        return self.find_by_account_identifier(iban)
 
     def find_by_name(self, name: str) -> AccountInfo | None:
         """Look up an account by name. Auto-refreshes if cache is stale."""

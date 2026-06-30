@@ -35,7 +35,7 @@ def _handle_savings_transfer(parsed: ParsedTransaction) -> bool:
         logger.warning("No source account number found in email — skipping")
         return False
 
-    source_info = account_cache.find_by_iban(parsed.source_account_number)
+    source_info = account_cache.find_by_account_identifier(parsed.source_account_number)
     if not source_info:
         logger.warning(
             "No YNAB account found matching account number %s — skipping",
@@ -84,16 +84,19 @@ def _handle_transaction(parsed: ParsedTransaction) -> bool:
     if parsed.is_savings_transfer:
         return _handle_savings_transfer(parsed)
 
-    info = account_cache.find_by_iban(parsed.iban)
+    info = account_cache.find_by_account_identifier(parsed.account_identifier)
     if not info:
-        logger.warning("No YNAB account found for IBAN %s — skipping", parsed.iban)
+        logger.warning(
+            "No YNAB account found for account identifier %s — skipping",
+            parsed.account_identifier,
+        )
         return False
 
     # Check if this is a transfer from/to a known account (e.g. savings)
     payee_id = None
     payee_name = parsed.payee_name
     if parsed.source_account_number:
-        counterpart = account_cache.find_by_iban(parsed.source_account_number)
+        counterpart = account_cache.find_by_account_identifier(parsed.source_account_number)
         if counterpart and counterpart.transfer_payee_id:
             payee_id = counterpart.transfer_payee_id
             payee_name = None
